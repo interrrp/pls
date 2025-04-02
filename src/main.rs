@@ -43,8 +43,7 @@ fn main() {
 
 fn print_unprivileged_notice(user: &str) {
     eprintln!(
-        "You ({}) are not in the superusers list. Contact your system administrator if this is a mistake.",
-        &user
+        "You ({user}) are not in the superusers list. Contact your system administrator if this is a mistake."
     );
     exit(FAILURE);
 }
@@ -88,7 +87,7 @@ fn exec(program: &str, program_args: &[String]) {
 }
 
 fn write_log(user: &str, log_file: &Path, program: &str, program_args: &[String]) {
-    let log_line = format!("{}: {} {}", user, program, program_args.join(" "));
+    let log_line = format!("{user}: {program} {}", program_args.join(" "));
 
     let mut file = OpenOptions::new()
         .create(true)
