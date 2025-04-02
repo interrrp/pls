@@ -1,7 +1,6 @@
 use std::{
     env::{Args, args},
     ffi::CString,
-    // fmt::Write,
     fs::{self, OpenOptions},
     io::Write,
     iter::Skip,
