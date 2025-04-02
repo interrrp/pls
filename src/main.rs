@@ -1,9 +1,12 @@
 use std::{
     env::{Args, args},
     ffi::CString,
-    fs,
+    // fmt::Write,
+    fs::{self, OpenOptions},
+    io::Write,
     iter::Skip,
     os::unix::process::CommandExt,
+    path::{Path, PathBuf},
     process::{Command, exit},
 };
 
@@ -18,27 +21,31 @@ const CFG_PATH: &'static str = "pls.toml";
 #[derive(Deserialize, Debug)]
 struct Config {
     superusers: Vec<String>,
+    log_file: PathBuf,
 }
 
 fn main() {
     let cfg = read_cfg();
 
-    check_if_superuser(&cfg.superusers);
+    let user = get_user();
+    if !cfg.superusers.contains(&user) {
+        print_unprivileged_notice(&user);
+    }
 
     let mut args = get_args();
+    let (program, program_args) = get_program_parts(&mut args);
+
     setuid_root();
-    exec(&mut args);
+    write_log(&user, &cfg.log_file, &program, &program_args);
+    exec(&program, &program_args);
 }
 
-fn check_if_superuser(superusers: &[String]) {
-    let user = get_user();
-    if !superusers.contains(&user) {
-        eprintln!(
-            "You ({}) are not in the superusers list. Contact your system administrator if this is a mistake.",
-            &user
-        );
-        exit(FAILURE);
-    }
+fn print_unprivileged_notice(user: &str) {
+    eprintln!(
+        "You ({}) are not in the superusers list. Contact your system administrator if this is a mistake.",
+        &user
+    );
+    exit(FAILURE);
 }
 
 fn get_user() -> String {
@@ -68,15 +75,32 @@ fn print_usage() {
     exit(FAILURE);
 }
 
-fn exec(args: &mut Skip<Args>) {
-    let program = args.next().unwrap();
-    let program_args: Vec<String> = args.collect();
+fn get_program_parts(args: &mut Skip<Args>) -> (String, Vec<String>) {
+    (args.next().unwrap(), args.collect())
+}
 
+fn exec(program: &str, program_args: &[String]) {
     let _ = Command::new(program).args(program_args).exec();
 
     // If we've reached this point, it means the command failed
     eprintln!("Command failed");
     exit(FAILURE);
+}
+
+fn write_log(user: &str, log_file: &Path, program: &str, program_args: &[String]) {
+    let log_line = format!(
+        "{}: {}",
+        user,
+        format!("{} {}", program, program_args.join(" "))
+    );
+
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_file)
+        .unwrap();
+
+    writeln!(file, "{}", log_line).unwrap();
 }
 
 fn setuid_root() {
