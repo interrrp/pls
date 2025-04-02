@@ -1,3 +1,5 @@
+#![deny(clippy::all, clippy::pedantic)]
+
 use std::{
     env::{Args, args},
     ffi::CString,
@@ -15,7 +17,7 @@ use serde::Deserialize;
 const ROOT: u32 = 0;
 const SUCCESS: i32 = 0;
 const FAILURE: i32 = 1;
-const CFG_PATH: &'static str = "pls.toml";
+const CFG_PATH: &str = "pls.toml";
 
 #[derive(Deserialize, Debug)]
 struct Config {
@@ -50,8 +52,7 @@ fn print_unprivileged_notice(user: &str) {
 fn get_user() -> String {
     unsafe {
         let passwd = *getpwuid(getuid());
-        let user = CString::from_raw(passwd.pw_name).into_string().unwrap();
-        user
+        CString::from_raw(passwd.pw_name).into_string().unwrap()
     }
 }
 
@@ -87,11 +88,7 @@ fn exec(program: &str, program_args: &[String]) {
 }
 
 fn write_log(user: &str, log_file: &Path, program: &str, program_args: &[String]) {
-    let log_line = format!(
-        "{}: {}",
-        user,
-        format!("{} {}", program, program_args.join(" "))
-    );
+    let log_line = format!("{}: {} {}", user, program, program_args.join(" "));
 
     let mut file = OpenOptions::new()
         .create(true)
@@ -99,7 +96,7 @@ fn write_log(user: &str, log_file: &Path, program: &str, program_args: &[String]
         .open(log_file)
         .unwrap();
 
-    writeln!(file, "{}", log_line).unwrap();
+    writeln!(file, "{log_line}").unwrap();
 }
 
 fn setuid_root() {
